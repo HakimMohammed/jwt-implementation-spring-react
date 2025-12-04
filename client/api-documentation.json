@@ -1,0 +1,154 @@
+{
+    "apiInfo": {
+        "title": "JWT Authentication API",
+        "description": "Spring Boot REST API with JWT-based authentication for user login and protected endpoints",
+        "version": "1.0.0",
+        "baseUrl": "http://localhost:8080"
+    },
+    "authentication": {
+        "type": "Bearer Token (JWT)",
+        "description": "After successful login, include the JWT token in the Authorization header for protected endpoints",
+        "headerFormat": "Authorization: Bearer <your_jwt_token>",
+        "tokenExpiration": "3600000ms (1 hour)"
+    },
+    "testUsers": [
+        {
+            "username": "user",
+            "password": "password",
+            "roles": ["ROLE_USER"]
+        },
+        {
+            "username": "admin",
+            "password": "admin123",
+            "roles": ["ROLE_ADMIN"]
+        }
+    ],
+    "endpoints": [
+        {
+            "name": "Login",
+            "description": "Authenticates a user and returns a JWT token",
+            "url": "/api/auth/login",
+            "method": "POST",
+            "authentication": "None (Public endpoint)",
+            "requestHeaders": {
+                "Content-Type": "application/json"
+            },
+            "requestBody": {
+                "type": "application/json",
+                "schema": {
+                    "username": {
+                        "type": "string",
+                        "required": true,
+                        "description": "The username of the user"
+                    },
+                    "password": {
+                        "type": "string",
+                        "required": true,
+                        "description": "The password of the user"
+                    }
+                },
+                "example": {
+                    "username": "user",
+                    "password": "password"
+                }
+            },
+            "responses": {
+                "200": {
+                    "description": "Successful authentication",
+                    "body": {
+                        "token": {
+                            "type": "string",
+                            "description": "JWT token to be used for authenticated requests"
+                        }
+                    },
+                    "example": {
+                        "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c2VyIiwicm9sZXMiOlsiUk9MRV9VU0VSIl0sImlhdCI6MTcwMTY4MDAwMCwiZXhwIjoxNzAxNjgzNjAwfQ.signature"
+                    }
+                },
+                "401": {
+                    "description": "Invalid credentials - username or password is incorrect"
+                },
+                "400": {
+                    "description": "Bad request - missing or malformed request body"
+                }
+            },
+            "curlExample": "curl -X POST http://localhost:8080/api/auth/login -H \"Content-Type: application/json\" -d \"{\\\"username\\\": \\\"user\\\", \\\"password\\\": \\\"password\\\"}\""
+        },
+        {
+            "name": "Hello (Protected)",
+            "description": "A protected endpoint that returns a greeting message. Requires valid JWT authentication.",
+            "url": "/api/hello",
+            "method": "GET",
+            "authentication": "Required (Bearer Token)",
+            "requestHeaders": {
+                "Authorization": "Bearer <jwt_token>"
+            },
+            "requestBody": null,
+            "responses": {
+                "200": {
+                    "description": "Successful response",
+                    "body": {
+                        "message": {
+                            "type": "string",
+                            "description": "Greeting message"
+                        }
+                    },
+                    "example": {
+                        "message": "Bonjour, endpoint protégé OK "
+                    }
+                },
+                "401": {
+                    "description": "Unauthorized - missing or invalid JWT token"
+                },
+                "403": {
+                    "description": "Forbidden - token expired or user lacks permissions"
+                }
+            },
+            "curlExample": "curl -X GET http://localhost:8080/api/hello -H \"Authorization: Bearer <your_jwt_token>\""
+        }
+    ],
+    "securityNotes": {
+        "publicEndpoints": ["/api/auth/**"],
+        "protectedEndpoints": ["All other endpoints require authentication"],
+        "corsNote": "CORS is not explicitly configured. Frontend may need backend CORS configuration if running on different origin."
+    },
+    "jwtTokenStructure": {
+        "header": {
+            "alg": "HS256",
+            "typ": "JWT"
+        },
+        "payload": {
+            "sub": "username",
+            "roles": "Array of user authorities/roles",
+            "iat": "Issued at timestamp",
+            "exp": "Expiration timestamp"
+        }
+    },
+    "frontendIntegrationGuide": {
+        "step1_login": {
+            "description": "Make a POST request to /api/auth/login with username and password",
+            "example": {
+                "javascript": "const response = await fetch('http://localhost:8080/api/auth/login', {\n  method: 'POST',\n  headers: { 'Content-Type': 'application/json' },\n  body: JSON.stringify({ username: 'user', password: 'password' })\n});\nconst data = await response.json();\nconst token = data.token;\nlocalStorage.setItem('jwt_token', token);"
+            }
+        },
+        "step2_storeToken": {
+            "description": "Store the received JWT token securely (localStorage, sessionStorage, or in-memory)",
+            "recommendation": "For better security, consider using httpOnly cookies or in-memory storage instead of localStorage"
+        },
+        "step3_authenticatedRequests": {
+            "description": "Include the token in the Authorization header for all protected API calls",
+            "example": {
+                "javascript": "const token = localStorage.getItem('jwt_token');\nconst response = await fetch('http://localhost:8080/api/hello', {\n  method: 'GET',\n  headers: {\n    'Authorization': `Bearer ${token}`\n  }\n});\nconst data = await response.json();"
+            }
+        },
+        "step4_handleExpiration": {
+            "description": "Handle token expiration by redirecting to login or implementing token refresh",
+            "tokenLifetime": "1 hour (3600000ms)"
+        }
+    },
+    "axiosExample": {
+        "setup": "// Create axios instance with interceptor\nimport axios from 'axios';\n\nconst api = axios.create({\n  baseURL: 'http://localhost:8080'\n});\n\n// Add token to requests\napi.interceptors.request.use((config) => {\n  const token = localStorage.getItem('jwt_token');\n  if (token) {\n    config.headers.Authorization = `Bearer ${token}`;\n  }\n  return config;\n});",
+        "login": "const login = async (username, password) => {\n  const response = await api.post('/api/auth/login', { username, password });\n  localStorage.setItem('jwt_token', response.data.token);\n  return response.data;\n};",
+        "protectedCall": "const getHello = async () => {\n  const response = await api.get('/api/hello');\n  return response.data;\n};"
+    }
+}
