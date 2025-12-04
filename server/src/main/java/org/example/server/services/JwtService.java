@@ -1,5 +1,7 @@
 package org.example.server.services;
 
+import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.Jws;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.security.Keys;
@@ -33,5 +35,21 @@ public class JwtService {
                 .setExpiration(expirationDate)
                 .signWith(key, SignatureAlgorithm.HS512)
                 .compact();
+    }
+
+    public String extractUsername(String token) {
+        return Jwts.parserBuilder().setSigningKey(key).build().parseClaimsJws(token).getBody().getSubject();
+    }
+
+    public boolean isTokenValid(String token) {
+        return Jwts.parserBuilder().setSigningKey(key).build().parseClaimsJws(token).getBody().getExpiration().after(new Date());
+    }
+
+    public String isUsernameValid(String username, String token) {
+        return extractUsername(token).equals(username) && isTokenValid(token) ? username : null;
+    }
+
+    private Jws<Claims> parseClaimsJws(String token) {
+        return Jwts.parserBuilder().setSigningKey(key).build().parseClaimsJws(token);
     }
 }
